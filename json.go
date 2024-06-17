@@ -23,25 +23,26 @@ type JsonRect struct {
 	Y int `json:"y"`
 }
 
+type JsonTextures struct {
+	Image string `json:"image"`
+	Foramt string `json:"format"`
+	scale int `json:"scale"`
+	size JsonSize `json:"size"`
+	Frames []*JsonFrameV3 `json:"frames"`
+}
+
 type JsonMetaData struct {
-	Image   string `json:"image"`
 	Version string `json:"version"`
+	App string `json:"app"`
+	SmartUpdate string `json:"smartupdate"`
 }
 
-type JsonVersion struct {
-	Meta   *JsonMetaData `json:"meta"`
-	Frames interface{}   `json:"frames"`
+type JsonStruct struct {
+	Textures []*JsonTextures `json:"textures"`
+	Meta *JsonMetaData `json:"meta"`
 }
 
-type JsonFrameHashV1 struct {
-	Frames map[string]*JsonFrameV1 `json:"frames"`
-}
-
-type JsonFrameArrayV1 struct {
-	Frames []*JsonFrameV1 `json:"frames"`
-}
-
-type JsonFrameV1 struct {
+type JsonFrameV3 struct {
 	Frame            *JsonRect `json:"frame"`
 	Rotated          bool      `json:"rotated"`
 	Trimmed          bool      `json:"trimmed"`
@@ -52,44 +53,24 @@ type JsonFrameV1 struct {
 
 func dumpJson(c *DumpContext) error {
 
-	version := JsonVersion{}
-	err := json.Unmarshal(c.FileContent, &version)
+	jsonStruct := JsonStruct{}
+	err := json.Unmarshal(c.FileContent, &jsonStruct)
 	if err != nil {
 		return err
 	}
 
-	if version.Meta == nil {
+	if jsonStruct.Meta == nil {
 		return ErrNotSupportJsonType
 	}
 
-	if version.Meta.Version != "1.0" {
-		return errors.New("unknow version:[" + version.Meta.Version + "]")
-	}
-
 	part := c.AppendPart()
-	part.ImageFile = version.Meta.Image
 
-	frames := map[string]*JsonFrameV1{}
+	part.ImageFile = jsonStruct.Textures[0].Image
 
-	switch version.Frames.(type) {
-	case map[string]interface{}:
-		jsonData := JsonFrameHashV1{}
-		err = json.Unmarshal(c.FileContent, &jsonData)
-		if err != nil {
-			return err
-		}
-		frames = jsonData.Frames
-	case []interface{}:
-		jsonData := JsonFrameArrayV1{}
-		err = json.Unmarshal(c.FileContent, &jsonData)
-		if err != nil {
-			return err
-		}
-		for _, v := range jsonData.Frames {
-			frames[v.Filename] = v
-		}
-	default:
-		return errors.New("unknow version:[" + version.Meta.Version + "]")
+	frames := map[string]*JsonFrameV3{}
+
+	for _, v := range jsonStruct.Textures[0].Frames {
+		frames[v.Filename] = v
 	}
 
 	for k, v := range frames {
